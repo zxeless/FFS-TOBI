@@ -1,0 +1,413 @@
+--// FFS BROOK - GAMING PC ULTRA PERFORMANCE
+--// HIGH VISUAL + LOW LATENCY + LIGHTWEIGHT
+--// AUTO SPEED 25
+--// NO HEAVY CONTINUOUS SCANNING
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+
+local Player = Players.LocalPlayer
+
+--==================================================
+-- CONFIG
+--==================================================
+
+local ENABLED = true
+
+local WALK_SPEED = 25
+
+-- High visual appearance
+local KEEP_MATERIALS = true
+local KEEP_TEXTURES = true
+local KEEP_DECALS = true
+
+-- Performance
+local DISABLE_GLOBAL_SHADOWS = true
+local DISABLE_PART_SHADOWS = true
+
+local REDUCE_PARTICLES = true
+local REDUCE_TRAILS = true
+local REDUCE_BEAMS = true
+
+local DISABLE_HEAVY_POSTFX = true
+local DISABLE_TERRAIN_DECORATION = true
+
+-- Lighting stays visible
+local LIGHT_MULTIPLIER = 0.85
+
+--==================================================
+-- CHARACTER
+--==================================================
+
+local function SetSpeed()
+	local Character = Player.Character
+	if not Character then
+		return
+	end
+
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
+	if Humanoid and Humanoid.WalkSpeed ~= WALK_SPEED then
+		Humanoid.WalkSpeed = WALK_SPEED
+	end
+end
+
+local function SetupCharacter(Character)
+
+	local Humanoid = Character:WaitForChild("Humanoid", 10)
+
+	if not Humanoid then
+		return
+	end
+
+	Humanoid.WalkSpeed = WALK_SPEED
+
+	Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+
+		if ENABLED and Humanoid.WalkSpeed ~= WALK_SPEED then
+			Humanoid.WalkSpeed = WALK_SPEED
+		end
+
+	end)
+
+end
+
+if Player.Character then
+	task.spawn(function()
+		SetupCharacter(Player.Character)
+	end)
+end
+
+Player.CharacterAdded:Connect(function(Character)
+
+	task.defer(function()
+		SetupCharacter(Character)
+	end)
+
+end)
+
+--==================================================
+-- LIGHTING
+--==================================================
+
+local function OptimizeLighting()
+
+	if not ENABLED then
+		return
+	end
+
+	if DISABLE_GLOBAL_SHADOWS then
+		Lighting.GlobalShadows = false
+	end
+
+	Lighting.FogEnd = 100000
+end
+
+OptimizeLighting()
+
+Lighting:GetPropertyChangedSignal("GlobalShadows"):Connect(function()
+
+	if ENABLED and DISABLE_GLOBAL_SHADOWS then
+		Lighting.GlobalShadows = false
+	end
+
+end)
+
+--==================================================
+-- LIGHTS
+--==================================================
+
+local function OptimizeLight(Object)
+
+	if not Object:IsA("PointLight")
+		and not Object:IsA("SpotLight")
+		and not Object:IsA("SurfaceLight") then
+		return
+	end
+
+	if Object:GetAttribute("FFS_Optimized") then
+		return
+	end
+
+	Object:SetAttribute("FFS_Optimized", true)
+
+	local OriginalBrightness = Object.Brightness
+
+	Object:SetAttribute(
+		"FFS_OriginalBrightness",
+		OriginalBrightness
+	)
+
+	Object.Brightness =
+		OriginalBrightness * LIGHT_MULTIPLIER
+
+end
+
+--==================================================
+-- PARTS
+--==================================================
+
+local function OptimizePart(Object)
+
+	if not Object:IsA("BasePart") then
+		return
+	end
+
+	if Object:GetAttribute("FFS_Optimized") then
+		return
+	end
+
+	Object:SetAttribute("FFS_Optimized", true)
+
+	if DISABLE_PART_SHADOWS then
+		Object.CastShadow = false
+	end
+
+end
+
+--==================================================
+-- PARTICLES
+--==================================================
+
+local function OptimizeParticle(Object)
+
+	if not Object:IsA("ParticleEmitter") then
+		return
+	end
+
+	if not REDUCE_PARTICLES then
+		return
+	end
+
+	if Object:GetAttribute("FFS_Optimized") then
+		return
+	end
+
+	Object:SetAttribute("FFS_Optimized", true)
+
+	local OriginalRate = Object.Rate
+
+	Object:SetAttribute(
+		"FFS_OriginalRate",
+		OriginalRate
+	)
+
+	-- Don't kill the effect.
+	-- Only reduce excessive particle spam.
+
+	if OriginalRate > 40 then
+		Object.Rate = OriginalRate * 0.65
+	end
+
+end
+
+--==================================================
+-- TRAILS
+--==================================================
+
+local function OptimizeTrail(Object)
+
+	if not Object:IsA("Trail") then
+		return
+	end
+
+	if not REDUCE_TRAILS then
+		return
+	end
+
+	if Object:GetAttribute("FFS_Optimized") then
+		return
+	end
+
+	Object:SetAttribute("FFS_Optimized", true)
+
+	if Object.Lifetime > 0.5 then
+		Object.Lifetime = 0.5
+	end
+
+end
+
+--==================================================
+-- BEAMS
+--==================================================
+
+local function OptimizeBeam(Object)
+
+	if not Object:IsA("Beam") then
+		return
+	end
+
+	if not REDUCE_BEAMS then
+		return
+	end
+
+	if Object:GetAttribute("FFS_Optimized") then
+		return
+	end
+
+	Object:SetAttribute("FFS_Optimized", true)
+
+	if Object.Segments > 6 then
+		Object.Segments = 6
+	end
+
+end
+
+--==================================================
+-- POST PROCESSING
+--==================================================
+
+local function OptimizePostEffect(Object)
+
+	if not DISABLE_HEAVY_POSTFX then
+		return
+	end
+
+	if Object:IsA("BlurEffect") then
+		Object.Enabled = false
+
+	elseif Object:IsA("DepthOfFieldEffect") then
+		Object.Enabled = false
+
+	elseif Object:IsA("SunRaysEffect") then
+		Object.Enabled = false
+
+	elseif Object:IsA("BloomEffect") then
+		Object.Enabled = false
+	end
+
+end
+
+--==================================================
+-- TERRAIN
+--==================================================
+
+local function OptimizeTerrain()
+
+	local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+
+	if Terrain and DISABLE_TERRAIN_DECORATION then
+		Terrain.Decoration = false
+	end
+
+end
+
+OptimizeTerrain()
+
+--==================================================
+-- OBJECT OPTIMIZER
+--==================================================
+
+local function OptimizeObject(Object)
+
+	if not ENABLED then
+		return
+	end
+
+	OptimizePart(Object)
+	OptimizeLight(Object)
+	OptimizeParticle(Object)
+	OptimizeTrail(Object)
+	OptimizeBeam(Object)
+	OptimizePostEffect(Object)
+
+end
+
+--==================================================
+-- INITIAL OPTIMIZATION
+--==================================================
+
+for _, Object in ipairs(Workspace:GetDescendants()) do
+	OptimizeObject(Object)
+end
+
+for _, Object in ipairs(Lighting:GetChildren()) do
+	OptimizeObject(Object)
+end
+
+--==================================================
+-- NEW OBJECTS
+--==================================================
+
+Workspace.DescendantAdded:Connect(function(Object)
+
+	if not ENABLED then
+		return
+	end
+
+	-- Only process the object that actually appeared.
+	-- No massive Workspace rescan.
+
+	task.defer(function()
+
+		if Object and Object.Parent then
+			OptimizeObject(Object)
+		end
+
+	end)
+
+end)
+
+Lighting.ChildAdded:Connect(function(Object)
+
+	if not ENABLED then
+		return
+	end
+
+	task.defer(function()
+
+		if Object and Object.Parent then
+			OptimizeObject(Object)
+		end
+
+	end)
+
+end)
+
+--==================================================
+-- SPEED LOOP
+--==================================================
+
+-- Lightweight check.
+-- No Workspace scanning here.
+
+RunService.Heartbeat:Connect(function()
+
+	if not ENABLED then
+		return
+	end
+
+	SetSpeed()
+
+end)
+
+--==================================================
+-- LIGHTWEIGHT MAINTENANCE
+--==================================================
+
+task.spawn(function()
+
+	while ENABLED do
+
+		task.wait(3)
+
+		OptimizeLighting()
+		OptimizeTerrain()
+
+	end
+
+end)
+
+--==================================================
+-- FINAL
+--==================================================
+
+print("======================================")
+print(" FFS BROOK - GAMING PC PERFORMANCE")
+print(" HIGH VISUAL MODE")
+print(" LOW LATENCY MODE")
+print(" AUTO SPEED:", WALK_SPEED)
+print(" HEAVY SCANNING: OFF")
+print("======================================")
